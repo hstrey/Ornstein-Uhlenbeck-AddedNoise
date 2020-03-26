@@ -48,8 +48,6 @@ def main():
                         help='relaxation time tau of OU')
     parser.add_argument('-w', '--noise', action='store', type=float, default=1.0,
                         help='power of the noise')
-    parser.add_argument('-t', '--timestep', action='store', type=float, default=0.1,
-                        help='timestep')
     parser.add_argument('-n', '--length', action='store', type=int, default=2000,
                         help='length of simulation in timesteps')
     parser.add_argument('-s', '--samples', action='store', type=int, default=2000,
@@ -69,7 +67,6 @@ def main():
     a = arg.amplitude
     tau = arg.tau
     pn = arg.noise
-    delta_t = arg.timestep
     n = arg.length
     mc_samples = arg.samples
     dtstart = arg.dtstart
