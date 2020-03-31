@@ -58,6 +58,8 @@ def main():
                         help='delta t range end')
     parser.add_argument('-l', '--dtlength', action='store', type=int, default=50,
                         help='delta t range number of points')
+    parser.add_argument('-u', '--duplicates', action='store', type=int, default=1,
+                        help='delta t range number of points')
 
     
     # get arguments
@@ -72,38 +74,40 @@ def main():
     dtstart = arg.dtstart
     dtend = arg.dtend
     dtlength = arg.dtlength
+    dupl = arg.duplicates
     
     delta_t_list = np.linspace(dtstart,dtend,dtlength)
 
     result_array = None
     for delta_t in delta_t_list:
         print(delta_t)
-        data = langevin.time_series(A=a, D=a/tau, delta_t=delta_t, N=n)
-        dataN = data + np.random.normal(loc=0.0, scale=np.sqrt(pn), size=n)
-        with pm.Model() as model:
-            B = pm.Beta('B', alpha=5.0,beta=1.0)
-            A = pm.Uniform('A', lower=0, upper=5)
-            sigma = pm.Uniform('sigma',lower=0,upper=5)
+        for i in range(dupl):
+            data = langevin.time_series(A=a, D=a/tau, delta_t=delta_t, N=n)
+            dataN = data + np.random.normal(loc=0.0, scale=np.sqrt(pn), size=n)
+            with pm.Model() as model:
+                B = pm.Beta('B', alpha=5.0,beta=1.0)
+                A = pm.Uniform('A', lower=0, upper=5)
+                sigma = pm.Uniform('sigma',lower=0,upper=5)
             
-            path = Ornstein_Uhlenbeck('path',A=A, B=B,shape=len(dataN))
-            dataObs = pm.Normal('dataObs',mu=path,sigma=sigma,observed=dataN)
-            trace = pm.sample(mc_samples,cores=4)
+                path = Ornstein_Uhlenbeck('path',A=A, B=B,shape=len(dataN))
+                dataObs = pm.Normal('dataObs',mu=path,sigma=sigma,observed=dataN)
+                trace = pm.sample(mc_samples,cores=4)
         
-        a_mean = trace['A'].mean()
-        b_mean = trace['B'].mean()
-        a_std = trace['A'].std()
-        b_std = trace['B'].std()
-        sigma_mean = trace['sigma'].mean()
-        sigma_std = trace['sigma'].std()
-        avgpath = np.mean(trace['path'],axis=0)
-        stddiff = np.std(data-avgpath)
-        stdpath = np.std(trace['path'],axis=0).mean()
+            a_mean = trace['A'].mean()
+            b_mean = trace['B'].mean()
+            a_std = trace['A'].std()
+            b_std = trace['B'].std()
+            sigma_mean = trace['sigma'].mean()
+            sigma_std = trace['sigma'].std()
+            avgpath = np.mean(trace['path'],axis=0)
+            stddiff = np.std(data-avgpath)
+            stdpath = np.std(trace['path'],axis=0).mean()
         
-        results = [delta_t,a_mean,a_std,b_mean,b_std,sigma_mean,sigma_std,stddiff,stdpath]
-        if result_array is None:
-            result_array = results
-        else:
-            result_array = np.vstack((result_array, results))
+            results = [delta_t,a_mean,a_std,b_mean,b_std,sigma_mean,sigma_std,stddiff,stdpath]
+            if result_array is None:
+                result_array = results
+            else:
+                result_array = np.vstack((result_array, results))
     
     column_names = ["delta_t","a_mean","a_std","b_mean","b_std","sigma_mean","sigma_std","stddiff","stdpath"]
     df=pd.DataFrame(result_array,columns=column_names)
