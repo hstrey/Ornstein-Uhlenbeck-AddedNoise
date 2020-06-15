@@ -89,7 +89,7 @@ def main():
                           'B':b_mean,
                           'dB':b_std,
                           's':sigma_mean,
-                          'ds':sigma_std})
+                          'ds':sigma_std},ignore_index=True)
                           
     df.to_csv(outfilename+'.csv',index=False)
 
