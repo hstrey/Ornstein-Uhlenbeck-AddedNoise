@@ -91,7 +91,7 @@ def main():
                           'ds':sigma_std}
         print(result_dict)
         result_df.append(result_dict,ignore_index=True)
-                          
+    print(result_df)                      
     result_df.to_csv(outfilename+'.csv',index=False)
 
 if __name__ == "__main__":
