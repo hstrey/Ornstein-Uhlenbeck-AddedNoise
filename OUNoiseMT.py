@@ -82,14 +82,15 @@ def main():
         b_std = trace['B'].std()
         sigma_mean = trace['sigma'].mean()
         sigma_std = trace['sigma'].std()
-
-        result_df.append({'dt':delta_t,
+        result_dict = {'dt':delta_t,
                           'A':a_mean,
                           'dA':a_std,
                           'B':b_mean,
                           'dB':b_std,
                           's':sigma_mean,
-                          'ds':sigma_std},ignore_index=True)
+                          'ds':sigma_std}
+        print(result_dict)
+        result_df.append(result_dict,ignore_index=True)
                           
     result_df.to_csv(outfilename+'.csv',index=False)
 
