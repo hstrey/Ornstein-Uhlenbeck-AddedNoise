@@ -91,7 +91,7 @@ def main():
                           's':sigma_mean,
                           'ds':sigma_std},ignore_index=True)
                           
-    df.to_csv(outfilename+'.csv',index=False)
+    result_df.to_csv(outfilename+'.csv',index=False)
 
 if __name__ == "__main__":
     main()
