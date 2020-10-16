@@ -8,6 +8,7 @@ import argparse
 import pymc3 as pm
 import theano.tensor as tt
 from scipy.stats import pearsonr
+from scipy.optimize import root
 
 class Ornstein_Uhlenbeck(pm.Continuous):
     """
@@ -77,6 +78,74 @@ def OUcross(data1,data2,deltat):
     x2_A, x2_dA, x2_tau ,x2_dtau= OUresult2(x2,deltat)
     return (x1_A - x2_A)/x2_A, np.sqrt(x1_dA**2 + x1_A**2*x2_dA**2/x2_A**4)
 
+def calc_fundstats(x):
+    return x[0]**2+x[-1]**2,np.sum(x[1:-1]**2),np.sum(x[0:-1]*x[1:])
+
+def b(D,A,delta_t):
+    return np.exp(-D/A*delta_t)
+
+def q(aep,ass,ac,b):
+    return (aep + (1+b**2)*ass - 2*b*ac)/(1-b**2)
+
+def dqdB(aep,ass,ac,b):
+    return 2*(b*aep+2*b*ass-(1+b**2)*ac)/(1-b**2)**2
+
+def d2qdB2(aep,ass,ac,b):
+    return (3*b+1)/(1-b**2)**3*(aep+2*ass)-(4*b**3-2*b**2+6*b)/(1-b**2)**3*ac
+
+def dBdA(b,D,A,delta_t):
+    return b*D*delta_t/A**2
+
+def dBdD(b,A,delta_t):
+    return -b*delta_t/A
+
+def d2BdA2(b,D,A,delta_t):
+    return b*(D**2*delta_t**2/A**4-2*D*delta_t/A**3)
+
+def d2BdD2(b,A,delta_t):
+    return b*delta_t**2/A**2
+
+def d2BdAdD(b,D,A,delta_t):
+    return b*delta_t/A**2*(1-D**2*delta_t/A)
+
+def d2qdD2(aep,ass,ac,b,A,delta_t):
+    return d2qdB2(aep,ass,ac,b)*dBdD(b,A,delta_t)**2+dqdB(aep,ass,ac,b)*d2BdD2(b,A,delta_t)
+
+def d2qdAdD(aep,ass,ac,b,D,A,delta_t):
+    return d2qdB2(aep,ass,ac,b)*dBdA(b,D,A,delta_t)*dBdD(b,A,delta_t)+dqdB(aep,ass,ac,b)*d2BdAdD(b,D,A,delta_t)
+
+def d2PdA2(N,aep,ass,ac,b,D,A,delta_t):
+    return (N/2/A - 
+            q(aep,ass,ac,b)/A**3 +
+            (N-1)/(1-b**2)*(b*d2BdA2(b,D,A,delta_t) + dBdA(b,D,A,delta_t)**2*(1+2*b**2/(1-b**2))))
+        
+def d2PdAdD(N,aep,ass,ac,b,D,A,delta_t):
+    return (dqdB(aep,ass,ac,b)*dBdD(b,A,delta_t)/2/A**2 -
+            d2qdAdD(aep,ass,ac,b,D,A,delta_t)/2/A +
+            (N-1)/(1-b**2)*(b*d2BdAdD(b,D,A,delta_t) + dBdA(b,D,A,delta_t)*dBdD(b,A,delta_t)*(1+2*b**2/(1-b**2))))
+
+def d2PdD2(N,a1ep,a1ss,a1c,a2ep,a2ss,a2c,b1,b2,D,A1,A2,delta_t):
+    return ((N-1)/(1-b1**2)*(b1*d2BdD2(b1,A1,delta_t) + dBdD(b1,A1,delta_t)**2*(1+2*b1**2/(1-b2**2)))+
+           (N-1)/(1-b2**2)*(b2*d2BdD2(b2,A2,delta_t) + dBdD(b2,A2,delta_t)**2*(1+2*b2**2/(1-b2**2)))-
+           d2qdD2(a1ep,a1ss,a1c,b1,A1,delta_t)/2/A1 -
+           d2qdD2(a2ep,a2ss,a2c,b2,A2,delta_t)/2/A2)
+           
+def phi_deriv(x,a1ep,a1ss,a1c,a2ep,a2ss,a2c,delta_t,N):
+    # x[0] = A1, x[1] = A2, x[2]=D
+    A1 = x[0]
+    A2 = x[1]
+    D = x[2]
+    b1 = b(D,A1,delta_t)
+    b2 = b(D,A2,delta_t)
+    Q1 = q(a1ep,a1ss,a1c,b1)
+    Q2 = q(a2ep,a2ss,a2c,b2)
+    dQ1 = dqdB(a1ep,a1ss,a1c,b1)
+    dQ2 = dqdB(a2ep,a2ss,a2c,b2)
+    y1 = -N*A1**2/2 + A1*Q1/2 + b1*D*delta_t*(A1*b1*(N-1)/(1-b1**2)-dQ1/2)
+    y2 = -N*A2**2/2 + A2*Q2/2 + b2*D*delta_t*(A2*b2*(N-1)/(1-b2**2)-dQ2/2)
+    y3 = (b1*(N-1)/(1-b1**2)-dQ1/A1/2)*b1/A1 + (b2*(N-1)/(1-b2**2)-dQ2/A2/2)*b2/A2
+    return np.array([y1,y2,y3])
+
 def correlated_ts(c,delta_t = 0.1,N=1000):
     # parameters for coupled oscillator
     K,D = 1.0,1.0
@@ -104,6 +173,35 @@ for rho in np.arange(-0.9,1.0,0.1):
         prho = pearsonr(x1,x2)[0]
         print("OU cross correlation", OUcross(x1,x2,delta_t))
         print("pearson: ",prho)
+
+        para = calc_fundstats(x1+x2) + calc_fundstats(x1-x2) +(delta_t,N)
+        guessa1 = (x1+x2).std()**2
+        guessa2 = (x1-x2).std()**2
+        guessd = 0.5
+        c_guess = (guessa1-guessa2)/guessa2
+        print(guessa1,guessa2,guessd,c_guess/(2+c_guess))
+        result = root(phi_deriv, [guessa1,guessa2,guessd],args=para)
+
+        a1 = result.x[0]
+        a2 = result.x[1]
+        d = result.x[2]
+
+        b1 = b(d,a1,delta_t)
+        b2 = b(d,a2,delta_t)
+        a1ep,a1ss,a1c = calc_fundstats(x1+x2)
+        a2ep,a2ss,a2c = calc_fundstats(x1-x2)
+        d2PdA2_1m = d2PdA2(N,a1ep,a1ss,a1c,b1,d,a1,delta_t)
+        d2PdA2_2m = d2PdA2(N,a2ep,a2ss,a2c,b2,d,a2,delta_t)
+        d2PdD2m = d2PdD2(N,a1ep,a1ss,a1c,a2ep,a2ss,a2c,b1,b2,d,a1,a2,delta_t)
+        d2PdAdD_1m = d2PdAdD(N,a1ep,a1ss,a1c,b1,d,a1,delta_t)
+        d2PdAdD_2m = d2PdAdD(N,a2ep,a2ss,a2c,b2,d,a2,delta_t)
+
+        jacob = np.array([[d2PdA2_1m,0,d2PdAdD_1m],[0,d2PdA2_2m,d2PdAdD_2m],[d2PdAdD_1m,d2PdAdD_2m,d2PdD2m]])
+        var = -np.linalg.inv(jacob)
+
+        da1 = np.sqrt(var[0,0])
+        da2 = np.sqrt(var[1,1])
+        dd = np.sqrt(var[2,2])
 
         y1 = x1 + x2
         y2 = x1 - x2
@@ -134,14 +232,18 @@ for rho in np.arange(-0.9,1.0,0.1):
         C_mean = np.mean(C_trace)
         dC = np.std(C_trace)
 
+        D_trace = trace['D']
+        D_mean = np.mean(D_trace)
+        dD = np.std(D_trace)
+
         print("predicted C: ",C_mean," +- ",dC)
 
         if results is None:
-            results = [rho,prho,C_mean,dC]
+            results = [rho,prho,C_mean,dC, A1_mean,dA1,A2_mean,dA2,D_mean,dD,a1,da1,a2,da2,d,dd]
         else:
-            results = np.vstack((results,[rho,prho,C_mean,dC]))
+            results = np.vstack((results,[rho,prho,C_mean,dC, A1_mean,dA1,A2_mean,dA2,D_mean,dD,a1,da1,a2,da2,d,dd]))
 
-column_names = ["rho","prho","C","dC"]
+column_names = ["rho","prho","C","dC","A1","dA1","A2","dA2","D","dD","a1","da1","a2","da2","d","dd"]
 df=pd.DataFrame(results,columns=column_names)
 print(df)
 df.to_csv('correlations10k.csv',index=False)
