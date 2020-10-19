@@ -160,9 +160,9 @@ def correlated_ts(c,delta_t = 0.1,N=1000):
     return x1,x2
 
 #parameters
-a_bound=2
-M=5
-N=10000
+a_bound=5
+M=50
+N=1000
 
 results = None
 for rho in np.arange(-0.9,1.0,0.1):
@@ -208,7 +208,7 @@ for rho in np.arange(-0.9,1.0,0.1):
         with pm.Model() as model:
             A1 = pm.Uniform('A1', lower=0, upper=a_bound)
             A2 = pm.Uniform('A2', lower=0, upper=a_bound)
-            D = pm.Uniform('D',lower=0,upper=3)
+            D = pm.Uniform('D',lower=0,upper=5)
             
             B1 = pm.Deterministic('B1',pm.math.exp(-delta_t * D / A1))
             B2 = pm.Deterministic('B2',pm.math.exp(-delta_t * D / A2))
@@ -246,4 +246,4 @@ for rho in np.arange(-0.9,1.0,0.1):
 column_names = ["rho","prho","C","dC","A1","dA1","A2","dA2","D","dD","a1","da1","a2","da2","d","dd"]
 df=pd.DataFrame(results,columns=column_names)
 print(df)
-df.to_csv('correlations10k.csv',index=False)
+df.to_csv('correlations1kbig.csv',index=False)
