@@ -165,7 +165,7 @@ M=400
 N=1000
 
 results = None
-for rho in np.arange(0.5,0.6,0.1):
+for rho in np.arange(0.25,0.3,0.1):
     for i in range(M):
         delta_t = 0.1
         coupling = 2*np.abs(rho)/(1-np.abs(rho))*np.sign(rho)
@@ -246,4 +246,4 @@ for rho in np.arange(0.5,0.6,0.1):
 column_names = ["rho","prho","C","dC","A1","dA1","A2","dA2","D","dD","a1","da1","a2","da2","d","dd"]
 df=pd.DataFrame(results,columns=column_names)
 print(df)
-df.to_csv('correlations1k05.csv',index=False)
+df.to_csv('correlations1k025.csv',index=False)
