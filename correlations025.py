@@ -91,7 +91,7 @@ def dqdB(aep,ass,ac,b):
     return 2*(b*aep+2*b*ass-(1+b**2)*ac)/(1-b**2)**2
 
 def d2qdB2(aep,ass,ac,b):
-    return (6*b+2)/(1-b**2)**3*(aep+2*ass)-(4*b**3+12*b)/(1-b**2)**3*ac
+    return (6*b+2)/(1-b**2)**3*(aep+2*ass)-(8*b**3-4*b**2+12*b)/(1-b**2)**3*ac
 
 def dBdA(b,D,A,delta_t):
     return b*D*delta_t/A**2
@@ -100,38 +100,33 @@ def dBdD(b,A,delta_t):
     return -b*delta_t/A
 
 def d2BdA2(b,D,A,delta_t):
-    return b*D*delta_t/A**3*(D*delta_t/A-2)
+    return b*(D**2*delta_t**2/A**4-2*D*delta_t/A**3)
 
 def d2BdD2(b,A,delta_t):
     return b*delta_t**2/A**2
 
 def d2BdAdD(b,D,A,delta_t):
-    return b*delta_t/A**2*(1-D*delta_t/A)
+    return b*delta_t/A**2*(1-D**2*delta_t/A)
 
 def d2qdD2(aep,ass,ac,b,A,delta_t):
     return d2qdB2(aep,ass,ac,b)*dBdD(b,A,delta_t)**2+dqdB(aep,ass,ac,b)*d2BdD2(b,A,delta_t)
-
-def d2qdA2(aep,ass,ac,b,D,A,delta_t):
-    return d2qdB2(aep,ass,ac,b)*dBdA(b,D,A,delta_t)**2+dqdB(aep,ass,ac,b)*d2BdA2(b,D,A,delta_t)
 
 def d2qdAdD(aep,ass,ac,b,D,A,delta_t):
     return d2qdB2(aep,ass,ac,b)*dBdA(b,D,A,delta_t)*dBdD(b,A,delta_t)+dqdB(aep,ass,ac,b)*d2BdAdD(b,D,A,delta_t)
 
 def d2PdA2(N,aep,ass,ac,b,D,A,delta_t):
-    return (N/2/A**2 - 
+    return (N/2/A - 
             q(aep,ass,ac,b)/A**3 +
-            (N-1)/(1-b**2)*(b*d2BdA2(b,D,A,delta_t) + dBdA(b,D,A,delta_t)**2*(1+b**2)/(1-b**2)) -
-            d2qdA2(aep,ass,ac,b,D,A,delta_t)/2/A +
-            1/A*dqdB(aep,ass,ac,b)*dBdA(b,D,A,delta_t))
-
+            (N-1)/(1-b**2)*(b*d2BdA2(b,D,A,delta_t) + dBdA(b,D,A,delta_t)**2*(1+2*b**2/(1-b**2))))
+        
 def d2PdAdD(N,aep,ass,ac,b,D,A,delta_t):
     return (dqdB(aep,ass,ac,b)*dBdD(b,A,delta_t)/2/A**2 -
             d2qdAdD(aep,ass,ac,b,D,A,delta_t)/2/A +
-            (N-1)/(1-b**2)*(b*d2BdAdD(b,D,A,delta_t) + dBdA(b,D,A,delta_t)*dBdD(b,A,delta_t)*(1+b**2)/(1-b**2)))
+            (N-1)/(1-b**2)*(b*d2BdAdD(b,D,A,delta_t) + dBdA(b,D,A,delta_t)*dBdD(b,A,delta_t)*(1+2*b**2/(1-b**2))))
 
 def d2PdD2(N,a1ep,a1ss,a1c,a2ep,a2ss,a2c,b1,b2,D,A1,A2,delta_t):
-    return ((N-1)/(1-b1**2)*(b1*d2BdD2(b1,A1,delta_t) + dBdD(b1,A1,delta_t)**2*(1+b1**2)/(1-b1**2))+
-           (N-1)/(1-b2**2)*(b2*d2BdD2(b2,A2,delta_t) + dBdD(b2,A2,delta_t)**2*(1+b2**2)/(1-b2**2))-
+    return ((N-1)/(1-b1**2)*(b1*d2BdD2(b1,A1,delta_t) + dBdD(b1,A1,delta_t)**2*(1+2*b1**2/(1-b2**2)))+
+           (N-1)/(1-b2**2)*(b2*d2BdD2(b2,A2,delta_t) + dBdD(b2,A2,delta_t)**2*(1+2*b2**2/(1-b2**2)))-
            d2qdD2(a1ep,a1ss,a1c,b1,A1,delta_t)/2/A1 -
            d2qdD2(a2ep,a2ss,a2c,b2,A2,delta_t)/2/A2)
            
@@ -166,14 +161,13 @@ def correlated_ts(c,delta_t = 0.1,N=1000):
 
 #parameters
 a_bound=5
-M=500
+M=400
 N=1000
-rho_list = [0.5]
+
 results = None
-for rho in rho_list:
+for rho in np.arange(0.25,0.35,0.1):
     for i in range(M):
-        print("rho: ",rho,"iteration: ",i)
-        delta_t = 0.3
+        delta_t = 0.1
         coupling = 2*np.abs(rho)/(1-np.abs(rho))*np.sign(rho)
         x1,x2 = correlated_ts(coupling,N=N)
         prho = pearsonr(x1,x2)[0]
@@ -202,8 +196,8 @@ for rho in rho_list:
         d2PdAdD_1m = d2PdAdD(N,a1ep,a1ss,a1c,b1,d,a1,delta_t)
         d2PdAdD_2m = d2PdAdD(N,a2ep,a2ss,a2c,b2,d,a2,delta_t)
 
-        hessian = np.array([[d2PdA2_1m,0,d2PdAdD_1m],[0,d2PdA2_2m,d2PdAdD_2m],[d2PdAdD_1m,d2PdAdD_2m,d2PdD2m]])
-        var = -np.linalg.inv(hessian)
+        jacob = np.array([[d2PdA2_1m,0,d2PdAdD_1m],[0,d2PdA2_2m,d2PdAdD_2m],[d2PdAdD_1m,d2PdAdD_2m,d2PdD2m]])
+        var = -np.linalg.inv(jacob)
 
         da1 = np.sqrt(var[0,0])
         da2 = np.sqrt(var[1,1])
@@ -222,7 +216,7 @@ for rho in rho_list:
             path1 = Ornstein_Uhlenbeck('path1',A=A1, B=B1,shape=len(y1),observed=y1)
             path2 = Ornstein_Uhlenbeck('path2',A=A2, B=B2,shape=len(y2),observed=y2)
                                 
-            trace = pm.sample(5000,tune=2000)
+            trace = pm.sample(10000,tune=2000)
 
         A1_trace = trace['A1']
         A2_trace = trace['A2']
@@ -244,28 +238,12 @@ for rho in rho_list:
 
         print("predicted C: ",C_mean," +- ",dC)
 
-        result = [rho,prho,
-                a1ep,a1ss,a1c,
-                a2ep,a2ss,a2c,
-                C_mean,dC,
-                A1_mean,dA1,
-                A2_mean,dA2,
-                D_mean,dD,
-                a1,da1,a2,da2,d,dd]
-
         if results is None:
-            results = result
+            results = [rho,prho,C_mean,dC, A1_mean,dA1,A2_mean,dA2,D_mean,dD,a1,da1,a2,da2,d,dd]
         else:
-            results = np.vstack((results,result))
+            results = np.vstack((results,[rho,prho,C_mean,dC, A1_mean,dA1,A2_mean,dA2,D_mean,dD,a1,da1,a2,da2,d,dd]))
 
-column_names = ["rho","prho",
-                "a1ep","a1ss","a1c",
-                "a2ep","a2ss","a2c",
-                "C","dC",
-                "A1","dA1",
-                "A2","dA2",
-                "D","dD",
-                "a1","da1","a2","da2","d","dd"]
+column_names = ["rho","prho","C","dC","A1","dA1","A2","dA2","D","dD","a1","da1","a2","da2","d","dd"]
 df=pd.DataFrame(results,columns=column_names)
 print(df)
-df.to_csv('correlations1k05.csv',index=False)
+df.to_csv('correlations1k09.csv',index=False)
