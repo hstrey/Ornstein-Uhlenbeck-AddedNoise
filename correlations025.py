@@ -106,7 +106,7 @@ def d2BdD2(b,A,delta_t):
     return b*delta_t**2/A**2
 
 def d2BdAdD(b,D,A,delta_t):
-    return b*delta_t/A**2*(1-D**2*delta_t/A)
+    return b*delta_t/A**2*(1-D*delta_t/A)
 
 def d2qdD2(aep,ass,ac,b,A,delta_t):
     return d2qdB2(aep,ass,ac,b)*dBdD(b,A,delta_t)**2+dqdB(aep,ass,ac,b)*d2BdD2(b,A,delta_t)

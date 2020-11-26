@@ -92,6 +92,9 @@ results = DataFrame(rho = Float64[],
                     da2 = Float64[],
                     d = Float64[],
                     dd = Float64[],
+                    da1da2 = Float64[],
+                    da1dd = Float64[],
+                    dasdd = Float64[],
                     a1ep = Float64[],
                     a1ss = Float64[],
                     a1c = Float64[],
@@ -104,7 +107,7 @@ results = DataFrame(rho = Float64[],
 tries = 500
 rho = 0.5
 delta_t = 0.3
-N = 10000
+N = 1000
 coupling = 2*abs(rho)/(1-abs(rho))*sign(rho)
 println("coupling: ",coupling," rho: ",rho)
 # do rho tries times
@@ -135,6 +138,9 @@ for i in 1:tries
     a2 = mean(ampl2)
     da1 = std(ampl1)
     da2 = std(ampl2)
+    da1da2 = cov(ampl1,ampl2)
+    da1dd = cov(ampl1,d)
+    da2dd = cov(ampl2,d)
     d_mean = mean(d)
     dd = std(d)
 
@@ -148,10 +154,11 @@ for i in 1:tries
 
     println("A1,A2: ",a1,",",a2)
     println("c estimate: ",c_mean,"std: ",dc)
+    println("cross corr: ",da1da2,da1dd,da2dd)
 
-    push!(results,[rho,coupling,pearson,a1,da1,a2,da2,d_mean,dd,a1ep,a1ss,a1c,a2ep,a2ss,a2c,c_mean,dc])
+    push!(results,[rho,coupling,pearson,a1,da1,a2,da2,d_mean,dd,da1da2[1],da1dd[1],da2dd[1],a1ep,a1ss,a1c,a2ep,a2ss,a2c,c_mean,dc])
 end
 
 println(results)
-CSV.write("correlations10k05.csv",results)
+CSV.write("correlations1k05.csv",results)
 
